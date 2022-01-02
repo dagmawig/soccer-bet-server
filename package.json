@@ -1,0 +1,19 @@
+{
+  "name": "soccer-bet-server",
+  "version": "1.0.0",
+  "description": "Backend for premier league betting website",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dag G",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.1",
+    "cors": "^2.8.5",
+    "express": "^4.17.2",
+    "mongoose": "^6.1.4",
+    "nodemailer": "^6.7.2",
+    "puppeteer": "^13.0.1"
+  }
+}
