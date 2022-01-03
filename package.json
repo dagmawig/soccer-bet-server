@@ -4,7 +4,9 @@
   "description": "Backend for premier league betting website",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "author": "Dag G",
   "license": "ISC",
@@ -14,6 +16,7 @@
     "express": "^4.17.2",
     "mongoose": "^6.1.4",
     "nodemailer": "^6.7.2",
+    "nodemon": "^2.0.15",
     "puppeteer": "^13.0.1"
   }
 }
