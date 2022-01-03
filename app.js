@@ -11,51 +11,59 @@ const doScrap = async () => {
 
     await page.goto('https://www.bbc.com/sport/football/scores-fixtures/2022-01-02', { waitUntil: 'networkidle0' });
 
-    //let data = [];
     let elementArr = await page.$$('div.qa-match-block');
-    // for (var ele of elementArr) {
-    //     let h3Text = await ele.$eval('h3', (res) => {
-    //         return res.innerHTML;
-    //     })
-    //     data.push(h3Text);
-    // }
+
+    if (elementArr.length === 0) return { success: false, message: "no games on this date" };
+
     let leagueElement;
 
-    for(var ele of elementArr) {
+    for (var ele of elementArr) {
         let h3Text = await ele.$eval('h3', (res) => {
             return res.innerHTML;
         })
-        if(h3Text==='Premier League') {
+        if (h3Text === 'Premier League') {
             leagueElement = ele;
             break;
         }
     }
-  
+
+    if (leagueElement === undefined) return { success: false, message: "no games on this date" };
 
     let fixtureArr = await leagueElement.$$('div.sp-c-fixture__wrapper');
 
     let data = [];
 
-    for(let fixture of fixtureArr) {
+    for (let fixture of fixtureArr) {
+        let fixObj = { teamName: [], score: [] };
         let teamsArr = await fixture.$$('abbr');
         let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft')
-        let arr = [];
-        for(let team of teamsArr) {
+
+        for (let team of teamsArr) {
             let teamHTML = await team.getProperty('innerHTML');
             let teamText = await teamHTML.jsonValue();
-            arr.push(teamText);
+            fixObj.teamName.push(teamText);
         }
-        for (let score of scoreArr) {
-            let scoreHTML = await score.getProperty('innerHTML');
-            let scoreText = await scoreHTML.jsonValue();
-            arr.push(scoreText)
+        if (scoreArr.length !== 0) {
+            for (let score of scoreArr) {
+                let scoreHTML = await score.getProperty('innerHTML');
+                let scoreText = await scoreHTML.jsonValue();
+                fixObj.score.push(scoreText)
+            }
         }
-        data.push(arr)
+        else {
+            fixObj.score = null;
+            let timeText = await fixture.evaluate(() => {
+                let ele = document.querySelector('span.sp-c-fixture__number--time');
+                if (ele) return ele.textContent;
+                return null;
+            })
+            fixObj.time = timeText;
+        }
+
+        data.push(fixObj)
     }
+
     return data;
-    //let element = await page.$('div.qa-match-block');
-    //let value = await page.evaluate(el => el.textContent, element)
-    //return element;
 }
 
 doScrap().then((res) => {
