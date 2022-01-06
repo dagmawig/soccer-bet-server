@@ -1,4 +1,33 @@
 const pup = require('puppeteer');
+const mongoose = require('mongoose');
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const { default: axios } = require('axios');
+
+require('dotenv').config();
+
+// allow app request from any domain
+app.use(cors({ origin: "*" }));
+
+const API_PORT = 3001;
+
+const router = express.Router();
+
+// bodyParser, parses the request body to be a readable json format
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+mongoose.connect(process.env.MONGO_URI, {});
+
+//requirement to use findOneAndUpdate method
+//mongoose.set("useFindAndModify", false);
+
+let db = mongoose.connection;
+
+// connecting to DB
+db.once("open", () => console.log("connected to database"));
 
 const config = {
     headless: true,
@@ -66,6 +95,6 @@ const doScrap = async () => {
     return data;
 }
 
-doScrap().then((res) => {
-    console.log(res);
-})
+// doScrap().then((res) => {
+//     console.log(res);
+// })
