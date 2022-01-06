@@ -5,6 +5,7 @@ const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { default: axios } = require('axios');
+const { UserModel, BetModel, HistoryModel } = require('./data');
 
 require('dotenv').config();
 
@@ -28,6 +29,9 @@ let db = mongoose.connection;
 
 // connecting to DB
 db.once("open", () => console.log("connected to database"));
+
+// checks if connection with the database is successful
+db.on("error", console.error.bind(console, "MongoDB connection error:"));
 
 const config = {
     headless: true,
@@ -98,3 +102,5 @@ const doScrap = async () => {
 // doScrap().then((res) => {
 //     console.log(res);
 // })
+
+
