@@ -20,6 +20,9 @@ const router = express.Router();
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// append /api for our http requests
+app.use("/", router);
+
 mongoose.connect(process.env.MONGO_URI, {});
 
 //requirement to use findOneAndUpdate method
@@ -66,10 +69,10 @@ const fetchFix = async (date) => {
 
     let data = [];
 
-    for(let index=0; index<fixtureArr.length; index++) {
+    for (let index = 0; index < fixtureArr.length; index++) {
         let fixObj = { teamName: [], score: [] };
         let fixture = fixtureArr[index];
-        let teamsArr = await fixture.$$('abbr');
+        let teamsArr = await fixture.$$('span.qa-full-team-name');
         let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft')
 
         for (let team of teamsArr) {
@@ -102,7 +105,6 @@ const fetchFix = async (date) => {
     return { success: true, data };
 }
 
-let dateA = ["2022-01-17", "2022-01-16"];
 
 async function fetchFixArr(dateArr) {
     let data = await dateArr.map((date) => {
@@ -113,11 +115,57 @@ async function fetchFixArr(dateArr) {
 }
 
 
-fetchFixArr(dateA).then((res) => {
-    Promise.all(res.data).then(fixArr => {
+// fetchFixArr(dateA).then((res) => {
+//     Promise.all(res.data).then(fixArr => {
 
-        console.log(JSON.stringify(fixArr, null, 4));
+//         console.log(JSON.stringify(fixArr, null, 4));
+//     })
+// })
+
+router.post("/loadData", (req, res) => {
+    
+    const { userID, email } = req.body;
+
+    let date = new Date();
+    let day = date.getUTCDay();
+    let diff = (day===0)? -1 : 6-day;
+    let gameDay1 = new Date(date.getTime() +(diff*24*3600*1000));
+    let gameDay2 = new Date(date.getTime() +((diff+1)*24*3600*1000));
+    let dateStr1 = getDateStr(gameDay1);
+    let dateStr2 = getDateStr(gameDay2);
+
+    fetchFixArr([dateStr1, dateStr2]).then((resp) => {
+        Promise.all(resp.data).then(fixArr => {
+            UserModel.findOne(
+                { userID: userID },
+                (err, data) => {
+                    if (err) res.json({ success: false, err: err });
+                    if (!data) {
+                        let data = new UserModel();
+                        data.userID = userID;
+                        data.email = email;
+                        console.log("new data, data");
+                        data.save(err => {
+                            if (err) res.json({ success: false, err: err });
+                            res.json( {success: true, data: { userData: data, fixture: fixArr.data }});
+                            
+                        })
+                    }
+                    else {
+                        res.json( {success: true, data: { userData: data, fixture: fixArr }});
+                    }
+                }
+            )
+        })
     })
 })
 
+function getDateStr(date) {
+    let yearStr = date.getUTCFullYear().toString();
+    let monthStr = Math.floor((date.getUTCMonth() + 1) / 10).toString() + ((date.getUTCMonth() + 1) % 10).toString();
+    let dateStr = Math.floor(date.getUTCDate()/10).toString() + (date.getUTCDate()%10).toString();
 
+    return yearStr + "-" + monthStr + "-" + dateStr;
+}
+// launch our backend into a port
+app.listen(API_PORT, () => console.log(`LISTENING ON PORT ${API_PORT}`));
