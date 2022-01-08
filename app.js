@@ -38,11 +38,11 @@ const config = {
     devtools: false
 }
 
-const doScrap = async () => {
+const fetchFix = async (date) => {
     const browser = await pup.launch(config);
     const page = await browser.newPage();
-
-    await page.goto('https://www.bbc.com/sport/football/scores-fixtures/2022-01-02', { waitUntil: 'networkidle0' });
+    let url = "https://www.bbc.com/sport/football/scores-fixtures/" + date;
+    await page.goto(url, { waitUntil: 'networkidle0' });
 
     let elementArr = await page.$$('div.qa-match-block');
 
@@ -66,8 +66,9 @@ const doScrap = async () => {
 
     let data = [];
 
-    for (let fixture of fixtureArr) {
+    for(let index=0; index<fixtureArr.length; index++) {
         let fixObj = { teamName: [], score: [] };
+        let fixture = fixtureArr[index];
         let teamsArr = await fixture.$$('abbr');
         let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft')
 
@@ -85,8 +86,8 @@ const doScrap = async () => {
         }
         else {
             fixObj.score = null;
-            let timeText = await fixture.evaluate(() => {
-                let ele = document.querySelector('span.sp-c-fixture__number--time');
+            let timeText = await fixture.evaluate((fix) => {
+                let ele = fix.querySelector('span.sp-c-fixture__number--time');
                 if (ele) return ele.textContent;
                 return null;
             })
@@ -96,11 +97,27 @@ const doScrap = async () => {
         data.push(fixObj)
     }
 
-    return data;
+
+
+    return { success: true, data };
 }
 
-// doScrap().then((res) => {
-//     console.log(res);
-// })
+let dateA = ["2022-01-17", "2022-01-16"];
+
+async function fetchFixArr(dateArr) {
+    let data = await dateArr.map((date) => {
+        return fetchFix(date);
+    })
+
+    return { success: true, data };
+}
+
+
+fetchFixArr(dateA).then((res) => {
+    Promise.all(res.data).then(fixArr => {
+
+        console.log(JSON.stringify(fixArr, null, 4));
+    })
+})
 
 
