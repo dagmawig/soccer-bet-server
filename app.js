@@ -178,16 +178,58 @@ router.post("/betOnMatch", (req, res) => {
                             { new: true },
                             (err, data) => {
                                 if (err) res.json({ success: false, err: err });
-                                return res.json({ success: true, userData: {userData: data, fixture: fixArr} });
+                                return res.json({ success: true, data: { userData: data, fixture: fixArr } });
                             }
                         )
                     }
-                    else res.json({success: false, message: "no such match the coming weekend.", fixture: fixArr})
+                    else res.json({ success: false, message: "no such match the coming weekend.", fixture: fixArr })
                 }
             )
         })
     })
 })
+
+router.post("/removeBet", (req, res) => {
+    const { userID, teams } = req.body;
+
+    UserModel.findOne(
+        { userID: userID },
+        (err, data) => {
+            if (err) res.json({ success: false, err: err });
+
+            let { betData } = data;
+            let newCurrentBet = teamsInBet(teams, betData.currentBet);
+
+            if (newCurrentBet === false) {
+                res.json({ success: false, message: "no such bet exists." })
+            }
+            else {
+                betData.currentBet = newCurrentBet;
+
+                UserModel.findOneAndUpdate(
+                    { userID: userID },
+                    { $set: { betData: betData } },
+                    { new: true },
+                    (err, data) => {
+                        if (err) res.json({ success: false, err: err });
+                        return res.json({ success: true, data: { userData: data } });
+                    }
+                )
+            }
+        }
+    )
+})
+
+function teamsInBet(teams, betArr) {
+    for (let i = 0; i < betArr.length; i++) {
+        if ((betArr[i].teams[0] === teams[0] && betArr[i].teams[1] === teams[1]) || (betArr[i].teams[0] === teams[1] && betArr[i].teams[1] === teams[0])) {
+            betArr.splice(i, 1);
+            return betArr;
+        }
+    }
+
+    return false;
+}
 
 function teamsInFix(teams, fixArr) {
     for (fixObj of fixArr) {
