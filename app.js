@@ -123,18 +123,10 @@ async function fetchFixArr(dateArr) {
 // })
 
 router.post("/loadData", (req, res) => {
-    
+
     const { userID, email } = req.body;
 
-    let date = new Date();
-    let day = date.getUTCDay();
-    let diff = (day===0)? -1 : 6-day;
-    let gameDay1 = new Date(date.getTime() +(diff*24*3600*1000));
-    let gameDay2 = new Date(date.getTime() +((diff+1)*24*3600*1000));
-    let dateStr1 = getDateStr(gameDay1);
-    let dateStr2 = getDateStr(gameDay2);
-
-    fetchFixArr([dateStr1, dateStr2]).then((resp) => {
+    fetchFixArr(getMatchDates()).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
             UserModel.findOne(
                 { userID: userID },
@@ -147,12 +139,12 @@ router.post("/loadData", (req, res) => {
                         console.log("new data, data");
                         data.save(err => {
                             if (err) res.json({ success: false, err: err });
-                            res.json( {success: true, data: { userData: data, fixture: fixArr.data }});
-                            
+                            res.json({ success: true, data: { userData: data, fixture: fixArr.data } });
+
                         })
                     }
                     else {
-                        res.json( {success: true, data: { userData: data, fixture: fixArr }});
+                        res.json({ success: true, data: { userData: data, fixture: fixArr } });
                     }
                 }
             )
@@ -160,10 +152,71 @@ router.post("/loadData", (req, res) => {
     })
 })
 
+router.post("/betOnMatch", (req, res) => {
+    const { userID, teams, betScore } = req.body;
+
+    fetchFixArr(getMatchDates()).then((resp) => {
+        Promise.all(resp.data).then(fixArr => {
+
+            UserModel.findOne(
+                { userID: userID },
+                (err, data) => {
+                    if (err) res.json({ success: false, err: err });
+                    if (teamsInFix(teams, fixArr)) {
+
+                        let bet = new BetModel();
+                        bet.teams = teams;
+                        bet.betScore = betScore;
+
+                        let { betData } = data;
+
+                        betData.currentBet.push(bet);
+
+                        UserModel.findOneAndUpdate(
+                            { userID: userID },
+                            { $set: { betData: betData } },
+                            { new: true },
+                            (err, data) => {
+                                if (err) res.json({ success: false, err: err });
+                                return res.json({ success: true, userData: {userData: data, fixture: fixArr} });
+                            }
+                        )
+                    }
+                    else res.json({success: false, message: "no such match the coming weekend.", fixture: fixArr})
+                }
+            )
+        })
+    })
+})
+
+function teamsInFix(teams, fixArr) {
+    for (fixObj of fixArr) {
+        if (fixObj.success) {
+            for (fixture of fixObj.data) {
+                if ((fixture.teamName[0] === teams[0] && fixture.teamName[1] === teams[1]) || (fixture.teamName[0] === teams[1] && fixture.teamName[1] === teams[0])) return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function getMatchDates() {
+    let date = new Date();
+    let day = date.getUTCDay();
+    let diff = (day === 0) ? -1 : 6 - day;
+    let gameDay1 = new Date(date.getTime() + (diff * 24 * 3600 * 1000));
+    let gameDay2 = new Date(date.getTime() + ((diff + 1) * 24 * 3600 * 1000));
+    let dateStr1 = getDateStr(gameDay1);
+    let dateStr2 = getDateStr(gameDay2);
+
+    return [dateStr1, dateStr2];
+}
+
 function getDateStr(date) {
     let yearStr = date.getUTCFullYear().toString();
     let monthStr = Math.floor((date.getUTCMonth() + 1) / 10).toString() + ((date.getUTCMonth() + 1) % 10).toString();
-    let dateStr = Math.floor(date.getUTCDate()/10).toString() + (date.getUTCDate()%10).toString();
+    let dateStr = Math.floor(date.getUTCDate() / 10).toString() + (date.getUTCDate() % 10).toString();
 
     return yearStr + "-" + monthStr + "-" + dateStr;
 }
