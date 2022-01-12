@@ -198,7 +198,7 @@ router.post("/removeBet", (req, res) => {
             if (err) res.json({ success: false, err: err });
 
             let { betData } = data;
-            let newCurrentBet = teamsInBet(teams, betData.currentBet);
+            let newCurrentBet = removeTeams(teams, betData.currentBet);
 
             if (newCurrentBet === false) {
                 res.json({ success: false, message: "no such bet exists." })
@@ -218,9 +218,51 @@ router.post("/removeBet", (req, res) => {
             }
         }
     )
-})
+});
 
-function teamsInBet(teams, betArr) {
+router.post("/updatebet", (req, res) => {
+    const { userID, teams, score } = req.body;
+
+    UserModel.findOne(
+        { userID: userID },
+        (err, data) => {
+            if (err) res.json({ success: false, err: err });
+
+            let { betData } = data;
+            let updatedBet = updateBet(teams, score, betData.currentBet);
+
+            if (updatedBet === false) {
+                res.json({ success: false, message: "no such bet exists." });
+            }
+            else {
+                betData.currentBet = updatedBet;
+
+                UserModel.findOneAndUpdate(
+                    { userID: userID },
+                    { $set: { betData: betData } },
+                    { new: true },
+                    (err, data) => {
+                        if (err) res.json({ success: false, err: err });
+                        return res.json({ success: true, data: { userData: data } });
+                    }
+                )
+            }
+        }
+    )
+});
+
+function updateBet(teams, score, betArr) {
+    for (let i = 0; i < betArr.length; i++) {
+        if (betArr[i].teams[0] === teams[0] && betArr[i].teams[1] === teams[1]) {
+            betArr[i].betScore = score;
+            return betArr;
+        }
+    }
+
+    return false;
+}
+
+function removeTeams(teams, betArr) {
     for (let i = 0; i < betArr.length; i++) {
         if ((betArr[i].teams[0] === teams[0] && betArr[i].teams[1] === teams[1]) || (betArr[i].teams[0] === teams[1] && betArr[i].teams[1] === teams[0])) {
             betArr.splice(i, 1);
