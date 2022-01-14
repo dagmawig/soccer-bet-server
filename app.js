@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { default: axios } = require('axios');
 const { UserModel, BetModel, HistoryModel } = require('./data');
+const nodemailer = require('nodemailer');
 
 require('dotenv').config();
 
@@ -304,5 +305,43 @@ function getDateStr(date) {
 
     return yearStr + "-" + monthStr + "-" + dateStr;
 }
+
+// this method is used to give access to a gmail account to send out price alert emails to users 
+var transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        type: 'OAuth2',
+        user: process.env.USER,
+        pass: process.env.PASS,
+        clientId: process.env.CLIENT_ID,
+        clientSecret: process.env.CLIENT_SECRET,
+        refreshToken: process.env.REFRESH_TOKEN
+    }
+});
+
+// this is the alert email template object
+var mailOptions = {
+    from: "111automail@gmail.com",
+    to: "",
+    subject: "",
+    text: ""
+}
+
+// this method sends emails to users for price alert
+function sendEmail() {
+    transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+            console.log("lol",error);
+        } else {
+            console.log("Email sent: " + info.response);
+        }
+    });
+}
+
+//mailOptions.to = "dgebreselasse@gmail.com";
+//sendEmail();
+
+
+
 // launch our backend into a port
 app.listen(API_PORT, () => console.log(`LISTENING ON PORT ${API_PORT}`));
