@@ -18,7 +18,6 @@ const BetSchema = new Schema(
         ranking: { type: Object, default: [] },
         betScore: { type: Object, default: [] },
         gameDate: { type: Date, default: null },
-        actualScore: { type: Object, default: [] },
     },
     { timestamps: true, _id: true, minimize: false, strict: false }
 );
@@ -29,6 +28,7 @@ const historySchema = new Schema (
         betScore: { type: Object, default: [] },
         gameDate: { type: Date, default: null },
         actualScore: { type: Object, default: [] },
+        points: { type: Number, default: 0}
     },
     { timestamps: true, _id: true, minimize: false, strict: false }
 )

@@ -98,6 +98,8 @@ const fetchFix = async (date) => {
             fixObj.time = timeText;
         }
 
+        fixObj.date = date;
+
         data.push(fixObj)
     }
 
@@ -126,9 +128,10 @@ async function fetchFixArr(dateArr) {
 router.post("/loadData", (req, res) => {
 
     const { userID, email } = req.body;
-
+    console.log("loading data...");
     fetchFixArr(getMatchDates()).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
+            console.log("brings afix arr", fixArr)
             UserModel.findOne(
                 { userID: userID },
                 (err, data) => {
@@ -140,7 +143,7 @@ router.post("/loadData", (req, res) => {
                         console.log("new data, data");
                         data.save(err => {
                             if (err) res.json({ success: false, err: err });
-                            res.json({ success: true, data: { userData: data, fixture: fixArr.data } });
+                            res.json({ success: true, data: { userData: data, fixture: fixArr } });
 
                         })
                     }
@@ -253,23 +256,79 @@ router.post("/updatebet", (req, res) => {
 });
 
 function settleScore() {
-    let date = new Date();
+    let dates = getMatchDates();
 
-    fetchFixArr(getMatchDates()).then((resp) => {
+    fetchFixArr(dates).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
             let flatFix = [];
-            for(fix of fixArr) {
-               if(fix.success===true) {
-                   flatFix = flatFix.concat(fix.data);
-               }
+            for (fix of fixArr) {
+                if (fix.success === true) {
+                    flatFix = flatFix.concat(fix.data);
+                }
             }
-            if(flatFix.length===0) return;
-    
-            UserModel.find({}).then(res => {
-                for(user of res) {
+            if (flatFix.length === 0) return;
+
+            UserModel.find({}).then(data => {
+                for (user of data) {
                     //console.log(user);
-                    let link = fixInBet(flatFix, user.betData.currentBet);
-                    console.log(link);
+                    let linkArr = fixInBet(flatFix, user.betData.currentBet);
+                    if (linkArr.length !== 0) {
+                        let { betData } = user;
+                        let historyArr = [];
+                        let totalPt = 0;
+                        let removeList = [];
+                        for (link of linkArr) {
+                            if (flatFix[link[0]].score !== null) {
+                                let history = new HistoryModel();
+                                history.teams = user.betData.currentBet[link[1]].teams;
+                                history.betScore = user.betData.currentBet[link[1]].betScore;
+                                history.gameDate = flatFix[link[0]].date;
+                                history.actualScore = flatFix[link[0]].score;
+
+                                if(history.betScore[0]===parseInt(history.actualScore[0]) && history.betScore[0]===parseInt(history.actualScore[0])) {
+                                    history.points = 5;
+                                    totalPt += 5;
+                                }
+                                else if ((history.betScore[0]===history.betScore[1] && history.actualScore[0]===history.actualScore[1]) || (history.betScore[0]>history.betScore[1] && history.actualScore[0]>history.actualScore[1]) || (history.betScore[0]<history.betScore[1] && history.actualScore[0]<history.actualScore[1])) {
+                                    history.points = 2;
+                                    totalPt += 2;
+                                }
+                                
+                                historyArr.push(history);
+                                removeList.push(link[1]);
+                            }
+                        }
+
+                        if(historyArr.length!==0) {
+                            betData.betHistory.push({
+                                week: dates[0],
+                                totalPt: totalPt,
+                                historyArr: historyArr
+                            })
+
+                            let newCurrentBet = [];
+                            betData.currentBet.forEach((bet,i) => {
+                                if(removeList.indexOf(i)===-1) newCurrentBet.push(bet);
+                            })
+
+                            betData.currentBet = newCurrentBet;
+
+                            UserModel.findOneAndUpdate(
+                                { userID: user.userID },
+                                {$set: {betData: betData}},
+                                {new: true},
+                                (err, data) => {
+                                    if(err) {
+                                        console.log(err);
+                                        return;
+                                    }
+                                    console.log(JSON.stringify(data, null, " "));
+
+                                }
+                            )
+                        }
+
+                    }
                 }
             })
         })
@@ -279,15 +338,15 @@ function settleScore() {
 settleScore();
 
 function fixInBet(fixArr, betArr) {
-    let link = [];
+    let linkArr = [];
 
     fixArr.forEach((match, i) => {
-        betArr.forEach((bet, j) =>{
-            if(match.teamName[0]===bet.teams[0] && match.teamName[1]===bet.teams[1]) link.push([i,j]);
+        betArr.forEach((bet, j) => {
+            if (match.teamName[0] === bet.teams[0] && match.teamName[1] === bet.teams[1]) linkArr.push([i, j]);
         })
     })
 
-    return link;
+    return linkArr;
 }
 
 function updateBet(teams, score, betArr) {
@@ -369,7 +428,7 @@ var mailOptions = {
 function sendEmail() {
     transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
-            console.log("lol",error);
+            console.log("lol", error);
         } else {
             console.log("Email sent: " + info.response);
         }
