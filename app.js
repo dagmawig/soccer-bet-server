@@ -252,6 +252,44 @@ router.post("/updatebet", (req, res) => {
     )
 });
 
+function settleScore() {
+    let date = new Date();
+
+    fetchFixArr(getMatchDates()).then((resp) => {
+        Promise.all(resp.data).then(fixArr => {
+            let flatFix = [];
+            for(fix of fixArr) {
+               if(fix.success===true) {
+                   flatFix = flatFix.concat(fix.data);
+               }
+            }
+            if(flatFix.length===0) return;
+    
+            UserModel.find({}).then(res => {
+                for(user of res) {
+                    //console.log(user);
+                    let link = fixInBet(flatFix, user.betData.currentBet);
+                    console.log(link);
+                }
+            })
+        })
+    })
+}
+
+settleScore();
+
+function fixInBet(fixArr, betArr) {
+    let link = [];
+
+    fixArr.forEach((match, i) => {
+        betArr.forEach((bet, j) =>{
+            if(match.teamName[0]===bet.teams[0] && match.teamName[1]===bet.teams[1]) link.push([i,j]);
+        })
+    })
+
+    return link;
+}
+
 function updateBet(teams, score, betArr) {
     for (let i = 0; i < betArr.length; i++) {
         if (betArr[i].teams[0] === teams[0] && betArr[i].teams[1] === teams[1]) {
