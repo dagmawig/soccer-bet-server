@@ -255,8 +255,15 @@ router.post("/updatebet", (req, res) => {
     )
 });
 
+let settleWeekArr = [];
+
 function settleScore() {
+    console.log("it starts the cycle")
+    let currentDate = new Date();
     let dates = getMatchDates();
+
+    if(currentDate.getUTCDay() !==0 && currentDate.getUTCDay() !==6) return;
+    
 
     fetchFixArr(dates).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
@@ -266,7 +273,10 @@ function settleScore() {
                     flatFix = flatFix.concat(fix.data);
                 }
             }
-            if (flatFix.length === 0) return;
+            if (flatFix.length === 0) {
+                settleWeekArr.push(dates[0]);
+                return;
+            }
 
             UserModel.find({}).then(data => {
                 for (user of data) {
@@ -285,21 +295,21 @@ function settleScore() {
                                 history.gameDate = flatFix[link[0]].date;
                                 history.actualScore = flatFix[link[0]].score;
 
-                                if(history.betScore[0]===parseInt(history.actualScore[0]) && history.betScore[0]===parseInt(history.actualScore[0])) {
+                                if (history.betScore[0] === parseInt(history.actualScore[0]) && history.betScore[0] === parseInt(history.actualScore[0])) {
                                     history.points = 5;
                                     totalPt += 5;
                                 }
-                                else if ((history.betScore[0]===history.betScore[1] && history.actualScore[0]===history.actualScore[1]) || (history.betScore[0]>history.betScore[1] && history.actualScore[0]>history.actualScore[1]) || (history.betScore[0]<history.betScore[1] && history.actualScore[0]<history.actualScore[1])) {
+                                else if ((history.betScore[0] === history.betScore[1] && history.actualScore[0] === history.actualScore[1]) || (history.betScore[0] > history.betScore[1] && history.actualScore[0] > history.actualScore[1]) || (history.betScore[0] < history.betScore[1] && history.actualScore[0] < history.actualScore[1])) {
                                     history.points = 2;
                                     totalPt += 2;
                                 }
-                                
+
                                 historyArr.push(history);
                                 removeList.push(link[1]);
                             }
                         }
 
-                        if(historyArr.length!==0) {
+                        if (historyArr.length !== 0) {
                             betData.betHistory.push({
                                 week: dates[0],
                                 totalPt: totalPt,
@@ -307,23 +317,22 @@ function settleScore() {
                             })
 
                             let newCurrentBet = [];
-                            betData.currentBet.forEach((bet,i) => {
-                                if(removeList.indexOf(i)===-1) newCurrentBet.push(bet);
+                            betData.currentBet.forEach((bet, i) => {
+                                if (removeList.indexOf(i) === -1) newCurrentBet.push(bet);
                             })
 
                             betData.currentBet = newCurrentBet;
 
                             UserModel.findOneAndUpdate(
                                 { userID: user.userID },
-                                {$set: {betData: betData}},
-                                {new: true},
+                                { $set: { betData: betData } },
+                                { new: true },
                                 (err, data) => {
-                                    if(err) {
+                                    if (err) {
                                         console.log(err);
-                                        return;
+                                        return err;
                                     }
                                     console.log(JSON.stringify(data, null, " "));
-
                                 }
                             )
                         }
@@ -331,11 +340,18 @@ function settleScore() {
                     }
                 }
             })
+
+            settleWeekArr.push(dates[0]);
+            return;
+
         })
     })
+
+    return;
 }
 
-settleScore();
+
+let settleTask = setTimeout(settleScore, 3600000);
 
 function fixInBet(fixArr, betArr) {
     let linkArr = [];
