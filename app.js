@@ -71,10 +71,11 @@ const fetchFix = async (date) => {
     let data = [];
 
     for (let index = 0; index < fixtureArr.length; index++) {
-        let fixObj = { teamName: [], score: [] };
+        let fixObj = { teamName: [], score: [], liveScore: [] };
         let fixture = fixtureArr[index];
         let teamsArr = await fixture.$$('span.qa-full-team-name');
-        let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft')
+        let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft');
+        let liveScoreArr = await fixture.$$('span.sp-c-fixture__number--live-sport');
 
         for (let team of teamsArr) {
             let teamHTML = await team.getProperty('innerHTML');
@@ -82,14 +83,24 @@ const fetchFix = async (date) => {
             fixObj.teamName.push(teamText);
         }
         if (scoreArr.length !== 0) {
+            fixObj.liveScore = null;
             for (let score of scoreArr) {
                 let scoreHTML = await score.getProperty('innerHTML');
                 let scoreText = await scoreHTML.jsonValue();
                 fixObj.score.push(scoreText)
             }
         }
+        else if(liveScoreArr.length!==0) {
+            fixObj.score = null;
+            for (let score of liveScoreArr) {
+                let scoreHTML = await score.getProperty('innerHTML');
+                let scoreText = await scoreHTML.jsonValue();
+                fixObj.liveScore.push(scoreText);
+            }
+        }
         else {
             fixObj.score = null;
+            fixObj.liveScore = null;
             let timeText = await fixture.evaluate((fix) => {
                 let ele = fix.querySelector('span.sp-c-fixture__number--time');
                 if (ele) return ele.textContent;
