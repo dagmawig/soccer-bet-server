@@ -90,7 +90,7 @@ const fetchFix = async (date) => {
                 fixObj.score.push(scoreText)
             }
         }
-        else if(liveScoreArr.length!==0) {
+        else if (liveScoreArr.length !== 0) {
             fixObj.score = null;
             for (let score of liveScoreArr) {
                 let scoreHTML = await score.getProperty('innerHTML');
@@ -273,8 +273,8 @@ function settleScore() {
     let currentDate = new Date();
     let dates = getMatchDates();
 
-    if(currentDate.getUTCDay() !==0 && currentDate.getUTCDay() !==6) return;
-    
+    if (currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) return;
+
 
     fetchFixArr(dates).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
@@ -343,6 +343,21 @@ function settleScore() {
                                         console.log(err);
                                         return err;
                                     }
+
+                                    let emailString = `Bet result for week of ${dates[0]}\n\nYou won ${totalPt} total points this week.\n\n`;
+
+                                    for (history of historyArr) {
+                                        let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
+                                        Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
+                                        Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
+                                        Points won: ${history.points}\n\n`;
+
+                                        emailString += detailText;
+                                    }
+                                    mailOptions.to = data.email;
+                                    mailOptions.subject = `Week of ${dates[0]} bet soccer result!`;
+                                    mailOptions.text = emailString;
+                                    sendEmail();
                                     console.log(JSON.stringify(data, null, " "));
                                 }
                             )
@@ -361,7 +376,7 @@ function settleScore() {
     return;
 }
 
-
+//settleScore();
 let settleTask = setTimeout(settleScore, 3600000);
 
 function fixInBet(fixArr, betArr) {
