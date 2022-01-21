@@ -279,7 +279,7 @@ function settleScore() {
     fetchFixArr(dates).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
             let flatFix = [];
-            for (fix of fixArr) {
+            for (let fix of fixArr) {
                 if (fix.success === true) {
                     flatFix = flatFix.concat(fix.data);
                 }
@@ -290,17 +290,17 @@ function settleScore() {
             }
 
             UserModel.find({}).then(data => {
-                for (user of data) {
+                for (let user of data) {
                     //console.log(user);
                     let linkArr = fixInBet(flatFix, user.betData.currentBet);
                     if (linkArr.length !== 0) {
                         let { betData } = user;
-                        let length = betdata.betHistory.length;
+                        let length = betData.betHistory.length;
                         let historyArr = (betData.betHistory[length-1].week===dates[0])? betData.betHistory[length-1].historyArr : [];
                         let l = historyArr.length;
                         let totalPt = 0;
                         let removeList = [];
-                        for (link of linkArr) {
+                        for (let link of linkArr) {
                             if (flatFix[link[0]].score !== null) {
                                 let history = new HistoryModel();
                                 history.teams = user.betData.currentBet[link[1]].teams;
@@ -358,7 +358,7 @@ function settleScore() {
 
                                     let emailString = `Bet result for week of ${dates[0]}\n\nYou won ${totalPt} total points this week.\n\n`;
 
-                                    for (history of historyArr) {
+                                    for (let history of historyArr) {
                                         let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
                                         Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
                                         Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
@@ -426,9 +426,9 @@ function removeTeams(teams, betArr) {
 }
 
 function teamsInFix(teams, fixArr) {
-    for (fixObj of fixArr) {
+    for (let fixObj of fixArr) {
         if (fixObj.success) {
-            for (fixture of fixObj.data) {
+            for (let fixture of fixObj.data) {
                 if ((fixture.teamName[0] === teams[0] && fixture.teamName[1] === teams[1]) || (fixture.teamName[0] === teams[1] && fixture.teamName[1] === teams[0])) return true;
             }
         }
