@@ -295,7 +295,9 @@ function settleScore() {
                     let linkArr = fixInBet(flatFix, user.betData.currentBet);
                     if (linkArr.length !== 0) {
                         let { betData } = user;
-                        let historyArr = [];
+                        let length = betdata.betHistory.length;
+                        let historyArr = (betData.betHistory[length-1].week===dates[0])? betData.betHistory[length-1].historyArr : [];
+                        let l = historyArr.length;
                         let totalPt = 0;
                         let removeList = [];
                         for (link of linkArr) {
@@ -320,17 +322,27 @@ function settleScore() {
                             }
                         }
 
-                        if (historyArr.length !== 0) {
-                            betData.betHistory.push({
-                                week: dates[0],
-                                totalPt: totalPt,
-                                historyArr: historyArr
-                            })
+                        if (historyArr.length > l) {
+                            if(l===0) {
+                                betData.betHistory.push({
+                                    week: dates[0],
+                                    totalPt: totalPt,
+                                    historyArr: historyArr
+                                })
+                            }
+                            else if(l>0) {
+                                betData.betHistory[length-1] = {
+                                    ...betData.betHistory[length-1],
+                                    totalPt: betData.betHistory[length-1].totalPt+totalPt,
+                                    historyArr: historyArr
+                                }
+                            }
+                            
 
                             let newCurrentBet = [];
-                            betData.currentBet.forEach((bet, i) => {
-                                if (removeList.indexOf(i) === -1) newCurrentBet.push(bet);
-                            })
+                            // betData.currentBet.forEach((bet, i) => {
+                            //     if (removeList.indexOf(i) === -1) newCurrentBet.push(bet);
+                            // })
 
                             betData.currentBet = newCurrentBet;
 
