@@ -128,6 +128,73 @@ async function fetchFixArr(dateArr) {
     return { success: true, data };
 }
 
+const fetchRes = async (month) => {
+    const browser = await pup.launch(config);
+    const page = await browser.newPage();
+    let url = "https://www.bbc.com/sport/football/premier-league/scores-fixtures/" + month + "?filter=results";
+    await page.goto(url, { waitUntil: 'networkidle0' });
+
+    let aLink = await page.$$(`a[href='/sport/football/premier-league/scores-fixtures/${month}?filter=results']`)
+
+    if (aLink.length !== 0) await page.click(`a[href='/sport/football/premier-league/scores-fixtures/${month}?filter=results']`)
+
+    let elementArr = await page.$$('div.qa-match-block');
+
+    if (elementArr.length === 0) return { success: false, message: "no games in this month" };
+
+    let data = [];
+
+    for (let ele of elementArr) {
+        let matchObj = {};
+        matchObj.fixArr = [];
+        let titleArr = await ele.$$('h3');
+        let titleHTML = await titleArr[0].getProperty('innerHTML');
+        let titleText = await titleHTML.jsonValue();
+
+        let day = titleText.split(" ")[0].toUpperCase();
+        if (day !== 'SATURDAY' && day !== 'SUNDAY') continue;
+
+        let regEx = /\d+/g;
+        let date = parseInt(titleText.match(regEx).join([]));
+        let formatDate = Math.floor(date / 10).toString() + (date % 10).toString();
+        formatDate = month + "-" + formatDate;
+        matchObj.date = formatDate;
+
+        let fixtureArr = await ele.$$('div.sp-c-fixture__wrapper');
+
+        for (let fixture of fixtureArr) {
+            let fixObj = { teamName: [], score: [] };
+            let teamsArr = await fixture.$$('span.qa-full-team-name');
+            let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft');
+
+            for (let team of teamsArr) {
+                let teamHTML = await team.getProperty('innerHTML');
+                let teamText = await teamHTML.jsonValue();
+                fixObj.teamName.push(teamText);
+            }
+
+            if (scoreArr.length === 0) fixObj.score = null;
+            else {
+                for (let score of scoreArr) {
+                    let scoreHTML = await score.getProperty('innerHTML');
+                    let scoreText = await scoreHTML.jsonValue();
+                    fixObj.score.push(scoreText);
+                }
+            }
+
+            if (fixObj.score !== null) matchObj.fixArr.push(fixObj);
+        }
+
+        data.push(matchObj);
+    }
+
+    console.log(JSON.stringify(data, null, 4))
+
+    return { success: true, data }
+    
+}
+
+fetchRes('2022-01');
 
 // fetchFixArr(dateA).then((res) => {
 //     Promise.all(res.data).then(fixArr => {
@@ -296,7 +363,7 @@ function settleScore() {
                     if (linkArr.length !== 0) {
                         let { betData } = user;
                         let length = betData.betHistory.length;
-                        let historyArr = (betData.betHistory[length-1].week===dates[0])? betData.betHistory[length-1].historyArr : [];
+                        let historyArr = (betData.betHistory[length - 1].week === dates[0]) ? betData.betHistory[length - 1].historyArr : [];
                         let l = historyArr.length;
                         let totalPt = 0;
                         let removeList = [];
@@ -323,21 +390,21 @@ function settleScore() {
                         }
 
                         if (historyArr.length > l) {
-                            if(l===0) {
+                            if (l === 0) {
                                 betData.betHistory.push({
                                     week: dates[0],
                                     totalPt: totalPt,
                                     historyArr: historyArr
                                 })
                             }
-                            else if(l>0) {
-                                betData.betHistory[length-1] = {
-                                    ...betData.betHistory[length-1],
-                                    totalPt: betData.betHistory[length-1].totalPt+totalPt,
+                            else if (l > 0) {
+                                betData.betHistory[length - 1] = {
+                                    ...betData.betHistory[length - 1],
+                                    totalPt: betData.betHistory[length - 1].totalPt + totalPt,
                                     historyArr: historyArr
                                 }
                             }
-                            
+
 
                             let newCurrentBet = [];
                             // betData.currentBet.forEach((bet, i) => {
