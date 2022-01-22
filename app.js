@@ -235,7 +235,7 @@ router.post("/loadData", (req, res) => {
 })
 
 router.post("/betOnMatch", (req, res) => {
-    const { userID, teams, betScore } = req.body;
+    const { userID, teams, betScore, date } = req.body;
 
     fetchFixArr(getMatchDates()).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
@@ -249,7 +249,7 @@ router.post("/betOnMatch", (req, res) => {
                         let bet = new BetModel();
                         bet.teams = teams;
                         bet.betScore = betScore;
-
+                        bet.gameDate = date;
                         let { betData } = data;
 
                         betData.currentBet.push(bet);
