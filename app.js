@@ -67,15 +67,23 @@ const fetchFix = async (date) => {
     if (leagueElement === undefined) return { success: false, message: "no games on this date" };
 
     let fixtureArr = await leagueElement.$$('div.sp-c-fixture__wrapper');
-
+    let articleArr = await leagueElement.$$('article.sp-c-fixture');
     let data = [];
 
     for (let index = 0; index < fixtureArr.length; index++) {
         let fixObj = { teamName: [], score: [], liveScore: [] };
         let fixture = fixtureArr[index];
+        let article = articleArr[index];
         let teamsArr = await fixture.$$('span.qa-full-team-name');
         let scoreArr = await fixture.$$('span.sp-c-fixture__number--ft');
         let liveScoreArr = await fixture.$$('span.sp-c-fixture__number--live-sport');
+        let liveTimeWrapper, liveTimeArr;
+        if (liveScoreArr.length !== 0) {
+            liveTimeWrapper = await article.$$('span.sp-c-fixture__status--live-sport');
+            console.log(liveTimeWrapper)
+            liveTimeArr = await liveTimeWrapper[0].$$('span');
+            if(liveTimeArr[0]===undefined) liveTimeArr = await liveTimeWrapper[0].$$('abbr');
+        }
 
         for (let team of teamsArr) {
             let teamHTML = await team.getProperty('innerHTML');
@@ -97,6 +105,9 @@ const fetchFix = async (date) => {
                 let scoreText = await scoreHTML.jsonValue();
                 fixObj.liveScore.push(scoreText);
             }
+            let liveTimeHTML = await liveTimeArr[0].getProperty('innerHTML');
+            let liveTimeText = await liveTimeHTML.jsonValue();
+            fixObj.liveTime = liveTimeText;
         }
         else {
             fixObj.score = null;
@@ -188,28 +199,24 @@ const fetchRes = async (month) => {
         data.push(matchObj);
     }
 
-    console.log(JSON.stringify(data, null, 4))
-
     return { success: true, data }
-    
+
 }
 
-fetchRes('2022-01');
+async function fetchResArr(monthArr) {
+    let data = await monthArr.map((month) => {
+        return fetchRes(month);
+    })
 
-// fetchFixArr(dateA).then((res) => {
-//     Promise.all(res.data).then(fixArr => {
+    return { success: true, data };
+}
 
-//         console.log(JSON.stringify(fixArr, null, 4));
-//     })
-// })
 
 router.post("/loadData", (req, res) => {
 
     const { userID, email } = req.body;
-    console.log("loading data...");
     fetchFixArr(getMatchDates()).then((resp) => {
         Promise.all(resp.data).then(fixArr => {
-            console.log("brings afix arr", fixArr)
             UserModel.findOne(
                 { userID: userID },
                 (err, data) => {
@@ -226,7 +233,9 @@ router.post("/loadData", (req, res) => {
                         })
                     }
                     else {
-                        res.json({ success: true, data: { userData: data, fixture: fixArr } });
+                        let settle = settleScore(userID);
+                        if (settle.success === false) res.json({ success: false, err: settle.err });
+                        res.json({ success: true, data: { userData: (settle.data) ? settle.data.userData : data, fixture: fixArr } });
                     }
                 }
             )
@@ -335,139 +344,97 @@ router.post("/updatebet", (req, res) => {
 
 let settleWeekArr = [];
 
-function settleScore() {
-    console.log("it starts the cycle")
-    let currentDate = new Date();
-    let dates = getMatchDates();
+function settleScore(userID) {
 
-    if (currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) return;
+    return UserModel.findOne(
+        { userID: userID },
+        (err, data) => {
+            if (err) return { success: false, err: err };
 
-
-    fetchFixArr(dates).then((resp) => {
-        Promise.all(resp.data).then(fixArr => {
-            let flatFix = [];
-            for (let fix of fixArr) {
-                if (fix.success === true) {
-                    flatFix = flatFix.concat(fix.data);
-                }
-            }
-            if (flatFix.length === 0) {
-                settleWeekArr.push(dates[0]);
-                return;
+            let { betData } = data;
+            let dateArr = [];
+            for (let bet of betData.currentBet) {
+                if (dateArr.indexOf(bet.gameDate.slice(0, -3)) === -1) dateArr.push(bet.gameDate.slice(0, -3));
             }
 
-            UserModel.find({}).then(data => {
-                for (let user of data) {
-                    //console.log(user);
-                    let linkArr = fixInBet(flatFix, user.betData.currentBet);
-                    if (linkArr.length !== 0) {
-                        let { betData } = user;
-                        let length = betData.betHistory.length;
-                        let historyArr = (betData.betHistory[length - 1].week === dates[0]) ? betData.betHistory[length - 1].historyArr : [];
-                        let l = historyArr.length;
-                        let totalPt = 0;
-                        let removeList = [];
-                        for (let link of linkArr) {
-                            if (flatFix[link[0]].score !== null) {
-                                let history = new HistoryModel();
-                                history.teams = user.betData.currentBet[link[1]].teams;
-                                history.betScore = user.betData.currentBet[link[1]].betScore;
-                                history.gameDate = flatFix[link[0]].date;
-                                history.actualScore = flatFix[link[0]].score;
+            if (dateArr.length === 0) return { success: true, data: null };;
 
-                                if (history.betScore[0] === parseInt(history.actualScore[0]) && history.betScore[0] === parseInt(history.actualScore[0])) {
-                                    history.points = 5;
-                                    totalPt += 5;
+            return fetchResArr(dateArr).then((resp) => {
+                Promise.all(resp.data).then(resArr => {
+                    let flatRes = [];
+                    for (let result of resArr) {
+                        if (result.success === true) {
+                            for (let matchGrp of result.data) {
+                                for (let fix of matchGrp.fixArr) {
+                                    fix.date = matchGrp.date;
+                                    flatRes.push(fix);
                                 }
-                                else if ((history.betScore[0] === history.betScore[1] && history.actualScore[0] === history.actualScore[1]) || (history.betScore[0] > history.betScore[1] && history.actualScore[0] > history.actualScore[1]) || (history.betScore[0] < history.betScore[1] && history.actualScore[0] < history.actualScore[1])) {
-                                    history.points = 2;
-                                    totalPt += 2;
-                                }
-
-                                historyArr.push(history);
-                                removeList.push(link[1]);
                             }
                         }
-
-                        if (historyArr.length > l) {
-                            if (l === 0) {
-                                betData.betHistory.push({
-                                    week: dates[0],
-                                    totalPt: totalPt,
-                                    historyArr: historyArr
-                                })
-                            }
-                            else if (l > 0) {
-                                betData.betHistory[length - 1] = {
-                                    ...betData.betHistory[length - 1],
-                                    totalPt: betData.betHistory[length - 1].totalPt + totalPt,
-                                    historyArr: historyArr
-                                }
-                            }
-
-
-                            let newCurrentBet = [];
-                            // betData.currentBet.forEach((bet, i) => {
-                            //     if (removeList.indexOf(i) === -1) newCurrentBet.push(bet);
-                            // })
-
-                            betData.currentBet = newCurrentBet;
-
-                            UserModel.findOneAndUpdate(
-                                { userID: user.userID },
-                                { $set: { betData: betData } },
-                                { new: true },
-                                (err, data) => {
-                                    if (err) {
-                                        console.log(err);
-                                        return err;
-                                    }
-
-                                    let emailString = `Bet result for week of ${dates[0]}\n\nYou won ${totalPt} total points this week.\n\n`;
-
-                                    for (let history of historyArr) {
-                                        let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
-                                        Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
-                                        Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
-                                        Points won: ${history.points}\n\n`;
-
-                                        emailString += detailText;
-                                    }
-                                    mailOptions.to = data.email;
-                                    mailOptions.subject = `Week of ${dates[0]} bet soccer result!`;
-                                    mailOptions.text = emailString;
-                                    sendEmail();
-                                    console.log(JSON.stringify(data, null, " "));
-                                }
-                            )
-                        }
-
                     }
-                }
+                    //console.log(JSON.stringify(flatRes, null, 4));
+                    let linkArr = resInBet(flatRes, betData.currentBet);
+
+                    let newHistory = [];
+                    let deleteIndex = [];
+                    for (let link of linkArr) {
+                        let history = new HistoryModel();
+                        history.teams = flatRes[link[0]].teamName;
+                        history.betScore = betData.currentBet[link[1]].betScore;
+                        history.gameDate = flatRes[link[0]].date;
+                        history.actualScore = flatRes[link[0]].score;
+                        history.points = getPts(history.betScore, history.actualScore);
+                        newHistory.push(history);
+                        deleteIndex.push(link[1]);
+                    }
+
+                    if (newHistory.length !== 0) {
+                        let newBetHistory = [...betData.betHistory, ...newHistory];
+                        let newCurrentBet = [];
+                        betData.currentBet.forEach((bet, i) => {
+                            if (deleteIndex.indexOf(i) === -1) newCurrentBet.push(bet);
+                        })
+                        let newBetData = { currentBet: newCurrentBet, betHistory: newBetHistory }
+                        UserModel.findOneAndUpdate(
+                            { userID: userID },
+                            { $set: { betData: newBetData } },
+                            { new: true },
+                            (err, data) => {
+                                if (err) return { success: false, err: err };
+                                return { success: true, data: { userData: data } };
+                            }
+                        )
+                    }
+                    else return { success: true, data: null };
+                })
             })
 
-            settleWeekArr.push(dates[0]);
-            return;
-
-        })
-    })
-
-    return;
+        }
+    )
 }
 
-//settleScore();
-let settleTask = setTimeout(settleScore, 3600000);
+settleScore("DAG");
 
-function fixInBet(fixArr, betArr) {
+function resInBet(resArr, betArr) {
     let linkArr = [];
 
-    fixArr.forEach((match, i) => {
+    resArr.forEach((match, i) => {
         betArr.forEach((bet, j) => {
             if (match.teamName[0] === bet.teams[0] && match.teamName[1] === bet.teams[1]) linkArr.push([i, j]);
         })
     })
 
     return linkArr;
+}
+
+function getPts(betScore, actualScore) {
+    if (betScore[0] === parseInt(actualScore[0]) && betScore[1] === parseInt(actualScore[1])) return 5;
+    else if (
+        (betScore[0] === betScore[1] && actualScore[0] === actualScore[1]) ||
+        (betScore[0] > betScore[1] && actualScore[0] > actualScore[1]) ||
+        (betScore[0] < betScore[1] && actualScore[0] < actualScore[1])
+    ) return 2;
+    else return 0;
 }
 
 function updateBet(teams, score, betArr) {
