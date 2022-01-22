@@ -17,7 +17,7 @@ const BetSchema = new Schema(
         teams: { type: Object, default: [] },
         ranking: { type: Object, default: [] },
         betScore: { type: Object, default: [] },
-        gameDate: { type: Date, default: null },
+        gameDate: { type: String, default: null },
     },
     { timestamps: true, _id: true, minimize: false, strict: false }
 );
