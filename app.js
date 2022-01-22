@@ -81,7 +81,7 @@ const fetchFix = async (date) => {
         if (liveScoreArr.length !== 0) {
             liveTimeWrapper = await article.$$('span.sp-c-fixture__status--live-sport');
             liveTimeArr = await liveTimeWrapper[0].$$('abbr');
-            if(liveTimeArr[0]===undefined) liveTimeArr = await liveTimeWrapper[0].$$('span');
+            if (liveTimeArr[0] === undefined) liveTimeArr = await liveTimeWrapper[0].$$('span');
         }
 
         for (let team of teamsArr) {
@@ -150,7 +150,7 @@ const fetchRes = async (month) => {
 
 
     //let elementArrToday = await page.$$('div.qa-match-block');
-   
+
     // matchObj.fixArr = [];
     // let dateToday = new Date();
     // let d = dateToday.getUTCDate()
@@ -163,14 +163,14 @@ const fetchRes = async (month) => {
     //     //console.log(fixtureArrToday.length);
     //     let statusFT = await fixture.$$('span.qa-sp-fixture-status')[0]
     //     console.log(statusFT);
-        
+
     //     // let matchBox = await fixture.$$('div.sp-c-fixture_wrapper')[0];
     //     // console.log(matchBox)
     //     let abbr = await statusFT.$$('abbr')[0];
     //     let abbrHTML = await abbr.getProperty('innerHTML');
     //     let abbrText = await abbrHTML.jsonValue();
     //     if(abbrText==='FT') {
-            
+
     //         let fixObj = { teamName: [], score: [] };
     //         let teamsArr = await matchBox.$$('span.qa-full-team-name');
     //         let scoreArr = await matchBox.$$('span.sp-c-fixture__number--ft');
@@ -190,7 +190,7 @@ const fetchRes = async (month) => {
     //         matchObj.fixArr.push(fixObj)
     //     }
     // }
-    
+
     // if(matchObj.fixArr.length!==0) data.push(matchObj);
 
     let aLink = await page.$$(`a[href='/sport/football/premier-league/scores-fixtures/${month}?filter=results']`)
@@ -201,7 +201,7 @@ const fetchRes = async (month) => {
 
     if (elementArr.length === 0) return { success: false, message: "no games in this month" };
 
-    
+
 
     for (let ele of elementArr) {
         matchObj = {};
@@ -309,7 +309,7 @@ router.post("/betOnMatch", (req, res) => {
                         bet.betScore = betScore;
                         bet.gameDate = gameDate;
                         let { betData } = data;
-                        
+
                         betData.currentBet.push(bet);
 
                         UserModel.findOneAndUpdate(
@@ -452,6 +452,21 @@ function settleScore(userID) {
                             { new: true },
                             (err, data) => {
                                 if (err) return { success: false, err: err };
+
+                                let emailString = `Bet result update\n\n`;
+
+                                for (let history of newHistory) {
+                                    let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
+                                    Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
+                                    Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
+                                    Points won: ${history.points}\n\n`;
+
+                                    emailString += detailText;
+                                }
+                                mailOptions.to = data.email;
+                                mailOptions.subject = `Soccer Bet: You got an update!`;
+                                mailOptions.text = emailString;
+                                sendEmail();
                                 return { success: true, data: { userData: data } };
                             }
                         )
