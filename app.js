@@ -125,7 +125,7 @@ const fetchFix = async (date) => {
     }
 
 
-
+    await browser.close();
     return { success: true, data };
 }
 
@@ -246,6 +246,8 @@ const fetchRes = async (month) => {
 
         data.push(matchObj);
     }
+
+    await browser.close();
 
     return { success: true, data }
 
