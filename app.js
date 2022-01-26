@@ -423,7 +423,6 @@ function settleScore(userID) {
                             }
                         }
                     }
-                    //console.log(JSON.stringify(flatRes, null, 4));
                     let linkArr = resInBet(flatRes, betData.currentBet);
 
                     let newHistory = [];
@@ -442,7 +441,7 @@ function settleScore(userID) {
 
 
                     if (newHistory.length !== 0) {
-                        let newBetHistory = [...betData.betHistory, ...newHistory];
+                        let newBetHistory = mergeHistory([...betData.betHistory], [...newHistory]);
                         let newCurrentBet = [];
                         betData.currentBet.forEach((bet, i) => {
                             if (deleteIndex.indexOf(i) === -1) newCurrentBet.push(bet);
@@ -455,20 +454,20 @@ function settleScore(userID) {
                             (err, data) => {
                                 if (err) return { success: false, err: err };
 
-                                let emailString = `Bet result update\n\n`;
+                                // let emailString = `Bet result update\n\n`;
 
-                                for (let history of newHistory) {
-                                    let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
-                                    Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
-                                    Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
-                                    Points won: ${history.points}\n\n`;
+                                // for (let history of newHistory) {
+                                //     let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
+                                //     Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
+                                //     Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
+                                //     Points won: ${history.points}\n\n`;
 
-                                    emailString += detailText;
-                                }
-                                mailOptions.to = data.email;
-                                mailOptions.subject = `Soccer Bet: You got an update!`;
-                                mailOptions.text = emailString;
-                                sendEmail();
+                                //     emailString += detailText;
+                                // }
+                                // mailOptions.to = data.email;
+                                // mailOptions.subject = `Soccer Bet: You got an update!`;
+                                // mailOptions.text = emailString;
+                                //sendEmail();
                                 return { success: true, data: { userData: data } };
                             }
                         )
@@ -481,7 +480,28 @@ function settleScore(userID) {
     )
 }
 
-settleScore("DAG");
+
+
+function mergeHistory(betHistoryArr, newHistoryArr) {
+    for (let newHistory of newHistoryArr) {
+        if (betHistoryArr.length === 0) betHistoryArr.push(newHistory);
+        else {
+            for (let i = 0; i < betHistoryArr.length; i++) {
+                if (newHistory.gameDate >= betHistoryArr[i].gameDate) {
+                    betHistoryArr.splice(i, 0, newHistory);
+                    break;
+                }
+                else if (i === betHistoryArr.length - 1) {
+                    betHistoryArr.push(newHistory);
+                    break;
+                }
+            }
+        }
+    }
+
+    return betHistoryArr;
+}
+
 
 function resInBet(resArr, betArr) {
     let linkArr = [];

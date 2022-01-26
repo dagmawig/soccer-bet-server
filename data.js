@@ -26,7 +26,7 @@ const historySchema = new Schema (
     {
         teams: { type: Object, default: [] },
         betScore: { type: Object, default: [] },
-        gameDate: { type: Date, default: null },
+        gameDate: { type: String, default: null },
         actualScore: { type: Object, default: [] },
         points: { type: Number, default: 0}
     },
