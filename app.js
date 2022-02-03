@@ -46,7 +46,7 @@ const fetchFix = async (date) => {
     const browser = await pup.launch(config);
     const page = await browser.newPage();
     let url = "https://www.bbc.com/sport/football/scores-fixtures/" + date;
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
 
     let elementArr = await page.$$('div.qa-match-block');
 
@@ -142,7 +142,7 @@ const fetchRes = async (month) => {
     const browser = await pup.launch(config);
     const page = await browser.newPage();
     let url = "https://www.bbc.com/sport/football/premier-league/scores-fixtures/" + month + "?filter=results";
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 });
 
     let data = [];
     let matchObj = {};
