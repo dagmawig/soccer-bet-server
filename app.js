@@ -363,15 +363,14 @@ router.post("/removeBet", (req, res) => {
 });
 
 router.post("/updatebet", (req, res) => {
-    const { userID, teams, score } = req.body;
-
+    const { userID, teams, betScore } = req.body;
     UserModel.findOne(
         { userID: userID },
         (err, data) => {
             if (err) res.json({ success: false, err: err });
 
             let { betData } = data;
-            let updatedBet = updateBet(teams, score, betData.currentBet);
+            let updatedBet = updateBet(teams, betScore, betData.currentBet);
 
             if (updatedBet === false) {
                 res.json({ success: false, message: "no such bet exists." });
@@ -392,6 +391,26 @@ router.post("/updatebet", (req, res) => {
         }
     )
 });
+
+router.post("/reset", (req, res) => {
+    const { userID } = req.body;
+    UserModel.findOne(
+        { userID: userID },
+        (err, data) => {
+            if (err) res.json({ success: false, err: err });
+            let newBetData = { currentBet: [], betHistory: [] };
+            UserModel.findOneAndUpdate(
+                { userID: userID },
+                { $set: { betData: newBetData } },
+                { new: true },
+                (err, data) => {
+                    if (err) res.json({ success: false, err: err });
+                    return res.json({ success: true, data: { userData: data } });
+                }
+            )
+        }
+    )
+})
 
 let settleWeekArr = [];
 
