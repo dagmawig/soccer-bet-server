@@ -5,7 +5,7 @@ const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { default: axios } = require('axios');
-const { UserModel, BetModel, HistoryModel } = require('./data');
+const { UserModel, BetModel, HistoryModel, FixtureModel } = require('./data');
 const nodemailer = require('nodemailer');
 
 require('dotenv').config();
@@ -265,33 +265,81 @@ async function fetchResArr(monthArr) {
 router.post("/loadData", (req, res) => {
 
     const { userID, email } = req.body;
-    fetchFixArr(getMatchDates()).then((resp) => {
-        Promise.all(resp.data).then(fixArr => {
-            UserModel.findOne(
-                { userID: userID },
-                (err, data) => {
-                    if (err) res.json({ success: false, err: err });
-                    if (!data) {
-                        let data = new UserModel();
-                        data.userID = userID;
-                        data.email = email;
-                        console.log("new data, data");
-                        data.save(err => {
-                            if (err) res.json({ success: false, err: err });
-                            res.json({ success: true, data: { userData: data, fixture: fixArr } });
+    let satDate = getMatchDates()[0];
 
-                        })
-                    }
-                    else {
-                        let settle = settleScore(userID);
-                        if (settle.success === false) res.json({ success: false, err: settle.err });
+    FixtureModel.findOne(
+        {},
+        (err, data) => {
+            if (err) res.json({ success: false, err: err });
+            let fixObj = data.fixtures;
+            if (fixObj[satDate] === undefined) {
+                fetchFixArr(getMatchDates()).then((resp) => {
+                    Promise.all(resp.data).then(fixArr => {
+                        fixObj[satDate] = fixArr;
+                        console.log(data.fixtures)
+                        //data.fixtures = fixObj;
+                        FixtureModel.findOneAndUpdate(
+                            {},
+                            {$set: {fixtures: fixObj}},
+                            {new:true},
+                            (err,data) => {
+                                if (err) res.json({ success: false, err: err });
+                            }
+                        )
+                       
+                        UserModel.findOne(
+                            { userID: userID },
+                            (err, data) => {
+                                if (err) res.json({ success: false, err: err });
+                                if (!data) {
+                                    let data = new UserModel();
+                                    data.userID = userID;
+                                    data.email = email;
+                                    console.log("new data, data");
+                                    data.save(err => {
+                                        if (err) res.json({ success: false, err: err });
+                                        res.json({ success: true, data: { userData: data, fixture: fixArr } });
 
-                        res.json({ success: true, data: { userData: (settle.data) ? settle.data.userData : data, fixture: fixArr } });
+                                    })
+                                }
+                                else {
+                                    let settle = settleScore(userID);
+                                    if (settle.success === false) res.json({ success: false, err: settle.err });
+
+                                    res.json({ success: true, data: { userData: (settle.data) ? settle.data.userData : data, fixture: fixArr } });
+                                }
+                            }
+                        )
+                    })
+                })
+            }
+            else {
+                UserModel.findOne(
+                    { userID: userID },
+                    (err, data) => {
+                        if (err) res.json({ success: false, err: err });
+                        if (!data) {
+                            let data = new UserModel();
+                            data.userID = userID;
+                            data.email = email;
+                            console.log("new data, data");
+                            data.save(err => {
+                                if (err) res.json({ success: false, err: err });
+                                res.json({ success: true, data: { userData: data, fixture: fixObj[satDate] } });
+                            })
+                        }
+                        else {
+                            let settle = settleScore(userID);
+                            if (settle.success === false) res.json({ success: false, err: settle.err });
+
+                            res.json({ success: true, data: { userData: (settle.data) ? settle.data.userData : data, fixture: fixObj[satDate] } });
+                        }
                     }
-                }
-            )
-        })
-    })
+                )
+            }
+        }
+    )
+
 })
 
 router.post("/betOnMatch", (req, res) => {
