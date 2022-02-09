@@ -280,13 +280,13 @@ router.post("/loadData", (req, res) => {
                         //data.fixtures = fixObj;
                         FixtureModel.findOneAndUpdate(
                             {},
-                            {$set: {fixtures: fixObj}},
-                            {new:true},
-                            (err,data) => {
+                            { $set: { fixtures: fixObj } },
+                            { new: true },
+                            (err, data) => {
                                 if (err) res.json({ success: false, err: err });
                             }
                         )
-                       
+
                         UserModel.findOne(
                             { userID: userID },
                             (err, data) => {
@@ -344,39 +344,89 @@ router.post("/loadData", (req, res) => {
 
 router.post("/betOnMatch", (req, res) => {
     const { userID, teams, betScore, gameDate } = req.body;
+    let satDate = getMatchDates()[0];
 
-    fetchFixArr(getMatchDates()).then((resp) => {
-        Promise.all(resp.data).then(fixArr => {
-
-            UserModel.findOne(
-                { userID: userID },
-                (err, data) => {
-                    if (err) res.json({ success: false, err: err });
-                    if (teamsInFix(teams, fixArr)) {
-
-                        let bet = new BetModel();
-                        bet.teams = teams;
-                        bet.betScore = betScore;
-                        bet.gameDate = gameDate;
-                        let { betData } = data;
-
-                        betData.currentBet.push(bet);
-
-                        UserModel.findOneAndUpdate(
-                            { userID: userID },
-                            { $set: { betData: betData } },
+    FixtureModel.findOne(
+        {},
+        (err, data) => {
+            if (err) res.json({ success: false, err: err });
+            let fixObj = data.fixtures;
+            if (fixObj[satDate] === undefined) {
+                fetchFixArr(getMatchDates()).then((resp) => {
+                    Promise.all(resp.data).then(fixArr => {
+                        fixObj[satDate] = fixArr;
+                        //data.fixtures = fixObj;
+                        FixtureModel.findOneAndUpdate(
+                            {},
+                            { $set: { fixtures: fixObj } },
                             { new: true },
                             (err, data) => {
                                 if (err) res.json({ success: false, err: err });
-                                return res.json({ success: true, data: { userData: data, fixture: fixArr } });
                             }
                         )
+                        UserModel.findOne(
+                            { userID: userID },
+                            (err, data) => {
+                                if (err) res.json({ success: false, err: err });
+                                if (teamsInFix(teams, fixArr)) {
+
+                                    let bet = new BetModel();
+                                    bet.teams = teams;
+                                    bet.betScore = betScore;
+                                    bet.gameDate = gameDate;
+                                    let { betData } = data;
+
+                                    betData.currentBet.push(bet);
+
+                                    UserModel.findOneAndUpdate(
+                                        { userID: userID },
+                                        { $set: { betData: betData } },
+                                        { new: true },
+                                        (err, data) => {
+                                            if (err) res.json({ success: false, err: err });
+                                            return res.json({ success: true, data: { userData: data, fixture: fixArr } });
+                                        }
+                                    )
+                                }
+                                else res.json({ success: false, message: "no such match the coming weekend.", fixture: fixArr })
+                            }
+                        )
+                    })
+                })
+            }
+            else {
+                UserModel.findOne(
+                    { userID: userID },
+                    (err, data) => {
+                        if (err) res.json({ success: false, err: err });
+                        if (teamsInFix(teams, fixObj[satDate])) {
+
+                            let bet = new BetModel();
+                            bet.teams = teams;
+                            bet.betScore = betScore;
+                            bet.gameDate = gameDate;
+                            let { betData } = data;
+
+                            betData.currentBet.push(bet);
+
+                            UserModel.findOneAndUpdate(
+                                { userID: userID },
+                                { $set: { betData: betData } },
+                                { new: true },
+                                (err, data) => {
+                                    if (err) res.json({ success: false, err: err });
+                                    return res.json({ success: true, data: { userData: data, fixture: fixObj[satDate] } });
+                                }
+                            )
+                        }
+                        else res.json({ success: false, message: "no such match the coming weekend.", fixture: fixObj[satDate] })
                     }
-                    else res.json({ success: false, message: "no such match the coming weekend.", fixture: fixArr })
-                }
-            )
-        })
-    })
+                )
+            }
+        }
+    )
+
+
 })
 
 router.post("/removeBet", (req, res) => {
