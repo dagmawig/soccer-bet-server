@@ -42,6 +42,7 @@ const config = {
     devtools: false
 }
 
+// method that fetches fixture for a given date
 const fetchFix = async (date) => {
     const browser = await pup.launch(config);
     const page = await browser.newPage();
@@ -129,7 +130,7 @@ const fetchFix = async (date) => {
     return { success: true, data };
 }
 
-
+// method that calls fetchFix method for an array of dates and return an array of resolved promises
 async function fetchFixArr(dateArr) {
     let data = await dateArr.map((date) => {
         return fetchFix(date);
@@ -138,6 +139,7 @@ async function fetchFixArr(dateArr) {
     return { success: true, data };
 }
 
+// method that fetches match results for a given month
 const fetchRes = async (month) => {
     const browser = await pup.launch(config);
     const page = await browser.newPage();
@@ -148,50 +150,6 @@ const fetchRes = async (month) => {
     let matchObj = {};
 
 
-
-    //let elementArrToday = await page.$$('div.qa-match-block');
-
-    // matchObj.fixArr = [];
-    // let dateToday = new Date();
-    // let d = dateToday.getUTCDate()
-    // d = Math.floor(d/10).toString() + (d%10).toString();
-    // matchObj.date = month + "-" + d;
-
-    // let fixtureArrToday = await elementArrToday[0].$$('article.sp-c-fixture');
-
-    // for(let fixture of fixtureArrToday) {
-    //     //console.log(fixtureArrToday.length);
-    //     let statusFT = await fixture.$$('span.qa-sp-fixture-status')[0]
-    //     console.log(statusFT);
-
-    //     // let matchBox = await fixture.$$('div.sp-c-fixture_wrapper')[0];
-    //     // console.log(matchBox)
-    //     let abbr = await statusFT.$$('abbr')[0];
-    //     let abbrHTML = await abbr.getProperty('innerHTML');
-    //     let abbrText = await abbrHTML.jsonValue();
-    //     if(abbrText==='FT') {
-
-    //         let fixObj = { teamName: [], score: [] };
-    //         let teamsArr = await matchBox.$$('span.qa-full-team-name');
-    //         let scoreArr = await matchBox.$$('span.sp-c-fixture__number--ft');
-
-    //         for (let team of teamsArr) {
-    //             let teamHTML = await team.getProperty('innerHTML');
-    //             let teamText = await teamHTML.jsonValue();
-    //             fixObj.teamName.push(teamText);
-    //         }
-
-    //         for (let score of scoreArr) {
-    //             let scoreHTML = await score.getProperty('innerHTML');
-    //             let scoreText = await scoreHTML.jsonValue();
-    //             fixObj.score.push(scoreText);
-    //         }
-
-    //         matchObj.fixArr.push(fixObj)
-    //     }
-    // }
-
-    // if(matchObj.fixArr.length!==0) data.push(matchObj);
 
     let aLink = await page.$$(`a[href='/sport/football/premier-league/scores-fixtures/${month}?filter=results']`)
 
@@ -253,6 +211,7 @@ const fetchRes = async (month) => {
 
 }
 
+// method that calls fetchRes method for an array of months and returns an array of resolved promises
 async function fetchResArr(monthArr) {
     let data = await monthArr.map((month) => {
         return fetchRes(month);
@@ -261,7 +220,7 @@ async function fetchResArr(monthArr) {
     return { success: true, data };
 }
 
-
+// router that either creates new user or loads already existing user data
 router.post("/loadData", (req, res) => {
 
     const { userID, email } = req.body;
@@ -342,6 +301,7 @@ router.post("/loadData", (req, res) => {
 
 })
 
+// router that esecutes betting on a match
 router.post("/betOnMatch", (req, res) => {
     const { userID, teams, betScore, gameDate } = req.body;
     let satDate = getMatchDates()[0];
@@ -355,7 +315,6 @@ router.post("/betOnMatch", (req, res) => {
                 fetchFixArr(getMatchDates()).then((resp) => {
                     Promise.all(resp.data).then(fixArr => {
                         fixObj[satDate] = fixArr;
-                        //data.fixtures = fixObj;
                         FixtureModel.findOneAndUpdate(
                             {},
                             { $set: { fixtures: fixObj } },
@@ -429,6 +388,7 @@ router.post("/betOnMatch", (req, res) => {
 
 })
 
+// router that removes an existing bet
 router.post("/removeBet", (req, res) => {
     const { userID, teams } = req.body;
 
@@ -460,6 +420,7 @@ router.post("/removeBet", (req, res) => {
     )
 });
 
+// router that updates existing bet on match
 router.post("/updatebet", (req, res) => {
     const { userID, teams, betScore } = req.body;
     UserModel.findOne(
@@ -490,6 +451,7 @@ router.post("/updatebet", (req, res) => {
     )
 });
 
+// router that resets user's account
 router.post("/reset", (req, res) => {
     const { userID } = req.body;
     UserModel.findOne(
@@ -510,8 +472,7 @@ router.post("/reset", (req, res) => {
     )
 })
 
-let settleWeekArr = [];
-
+// method that compares match result with bet score to figure out points won and update bet data
 function settleScore(userID) {
 
     return UserModel.findOne(
@@ -570,21 +531,6 @@ function settleScore(userID) {
                             { new: true },
                             (err, data) => {
                                 if (err) return { success: false, err: err };
-
-                                // let emailString = `Bet result update\n\n`;
-
-                                // for (let history of newHistory) {
-                                //     let detailText = `Teams: ${history.teams[0]} vs ${history.teams[1]}\n
-                                //     Your Bet: ${history.betScore[0]}, ${history.betScore[1]}\n
-                                //     Final Score: ${history.actualScore[0]}, ${history.actualScore[1]}\n
-                                //     Points won: ${history.points}\n\n`;
-
-                                //     emailString += detailText;
-                                // }
-                                // mailOptions.to = data.email;
-                                // mailOptions.subject = `Soccer Bet: You got an update!`;
-                                // mailOptions.text = emailString;
-                                //sendEmail();
                                 return { success: true, data: { userData: data } };
                             }
                         )
@@ -597,8 +543,7 @@ function settleScore(userID) {
     )
 }
 
-
-
+// method that inserts new bet history item in an ordered bet history array
 function mergeHistory(betHistoryArr, newHistoryArr) {
     for (let newHistory of newHistoryArr) {
         if (betHistoryArr.length === 0) betHistoryArr.push(newHistory);
@@ -619,7 +564,7 @@ function mergeHistory(betHistoryArr, newHistoryArr) {
     return betHistoryArr;
 }
 
-
+// method that returns the match result items that are also in user's current bet data
 function resInBet(resArr, betArr) {
     let linkArr = [];
 
@@ -632,6 +577,7 @@ function resInBet(resArr, betArr) {
     return linkArr;
 }
 
+// method that calculates points won by comparing bet score with match result
 function getPts(betScore, actualScore) {
     if (betScore[0] === parseInt(actualScore[0]) && betScore[1] === parseInt(actualScore[1])) return 5;
     else if (
@@ -642,6 +588,7 @@ function getPts(betScore, actualScore) {
     else return 0;
 }
 
+// method that updates user's current bet data with new score
 function updateBet(teams, score, betArr) {
     for (let i = 0; i < betArr.length; i++) {
         if (betArr[i].teams[0] === teams[0] && betArr[i].teams[1] === teams[1]) {
@@ -653,6 +600,7 @@ function updateBet(teams, score, betArr) {
     return false;
 }
 
+// method that removes a bet item from a users's current bet data
 function removeTeams(teams, betArr) {
     for (let i = 0; i < betArr.length; i++) {
         if ((betArr[i].teams[0] === teams[0] && betArr[i].teams[1] === teams[1]) || (betArr[i].teams[0] === teams[1] && betArr[i].teams[1] === teams[0])) {
@@ -664,6 +612,7 @@ function removeTeams(teams, betArr) {
     return false;
 }
 
+// method that checks if a matchup of teams is in a match fixture
 function teamsInFix(teams, fixArr) {
     for (let fixObj of fixArr) {
         if (fixObj.success) {
@@ -676,6 +625,7 @@ function teamsInFix(teams, fixArr) {
     return false;
 }
 
+// a method that returns the date of the upcoming Saturday and Sunday
 function getMatchDates() {
     let date = new Date();
     let day = date.getUTCDay();
@@ -688,6 +638,7 @@ function getMatchDates() {
     return [dateStr1, dateStr2];
 }
 
+// a method that puts a date into YYYY-MM-DD format
 function getDateStr(date) {
     let yearStr = date.getUTCFullYear().toString();
     let monthStr = Math.floor((date.getUTCMonth() + 1) / 10).toString() + ((date.getUTCMonth() + 1) % 10).toString();
@@ -696,6 +647,7 @@ function getDateStr(date) {
     return yearStr + "-" + monthStr + "-" + dateStr;
 }
 
+/*
 // this method is used to give access to a gmail account to send out price alert emails to users 
 var transporter = nodemailer.createTransport({
     service: "gmail",
@@ -727,10 +679,7 @@ function sendEmail() {
         }
     });
 }
-
-//mailOptions.to = "dgebreselasse@gmail.com";
-//sendEmail();
-
+*/
 
 
 // launch our backend into a port
